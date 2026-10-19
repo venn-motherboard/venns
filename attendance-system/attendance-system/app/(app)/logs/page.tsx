@@ -30,9 +30,9 @@ async function fetchAll(): Promise<Row[]> {
 }
 
 const fmt = (iso: string) => new Date(iso).toLocaleString();
-const csvCell = (v: string) => "${v.replace(/"/g, '""')}";
+const csvCell = (v: string) => '"' + v.replace(/"/g, '""') + '"';
 const dayRange = (day: string) => {
-  const s = new Date(${day}T00:00:00);
+  const s = new Date(day + "T00:00:00");
   const e = new Date(s);
   e.setDate(e.getDate() + 1);
   return [s.toISOString(), e.toISOString()];
@@ -49,7 +49,7 @@ export default function LogsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try { setRows(await fetchAll()); }
-    catch (e) { setMsg({ kind: "err", text: Couldn't load records: ${(e as Error).message} }); }
+    catch (e) { setMsg({ kind: "err", text: "Couldn't load records: " + (e as Error).message }); }
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -72,11 +72,11 @@ export default function LogsPage() {
       const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = attendance-${new Date().toISOString().slice(0, 10)}.csv;
+      a.download = "attendance-" + new Date().toISOString().slice(0, 10) + ".csv";
       a.click();
       URL.revokeObjectURL(a.href);
 
-      const cutoff = data[0].timestamp; // newest record that is in the file
+      const cutoff = data[0].timestamp;
       const { error: e1 } = await supabase.from("attendance_logs")
         .update({ exported_at: new Date().toISOString() })
         .is("exported_at", null).lte("timestamp", cutoff);
@@ -85,12 +85,12 @@ export default function LogsPage() {
         const { error: e2 } = await supabase.from("attendance_logs")
           .delete().not("exported_at", "is", null).lte("timestamp", cutoff);
         if (e2) throw e2;
-        setMsg({ kind: "ok", text: Exported and deleted ${data.length} records. });
+        setMsg({ kind: "ok", text: "Exported and deleted " + data.length + " records." });
       } else {
-        setMsg({ kind: "ok", text: Exported ${data.length} records. });
+        setMsg({ kind: "ok", text: "Exported " + data.length + " records." });
       }
     } catch (e) {
-      setMsg({ kind: "err", text: Something went wrong: ${(e as Error).message} });
+      setMsg({ kind: "err", text: "Something went wrong: " + (e as Error).message });
     } finally {
       setBusy(false);
       await load();
@@ -103,18 +103,18 @@ export default function LogsPage() {
     const [start, end] = dayRange(day);
     const { count: total, error: e0 } = await supabase.from("attendance_logs")
       .select("id", { count: "exact", head: true }).gte("timestamp", start).lt("timestamp", end);
-    if (e0) return setMsg({ kind: "err", text: Couldn't check that day: ${e0.message} });
+    if (e0) return setMsg({ kind: "err", text: "Couldn't check that day: " + e0.message });
     if (!total) return setMsg({ kind: "err", text: "There are no records on that day." });
 
     const { count: pending, error: e1 } = await supabase.from("attendance_logs")
       .select("id", { count: "exact", head: true }).gte("timestamp", start).lt("timestamp", end).is("exported_at", null);
-    if (e1) return setMsg({ kind: "err", text: Couldn't check that day: ${e1.message} });
-    if (pending) return setMsg({ kind: "err", text: ${pending} record(s) on that day haven't been exported yet. Export to CSV first. });
+    if (e1) return setMsg({ kind: "err", text: "Couldn't check that day: " + e1.message });
+    if (pending) return setMsg({ kind: "err", text: pending + " record(s) on that day haven't been exported yet. Export to CSV first." });
 
-    if (!window.confirm(Delete all ${total} records on ${new Date(start).toLocaleDateString()}? This can't be undone.)) return;
+    if (!window.confirm("Delete all " + total + " records on " + new Date(start).toLocaleDateString() + "? This can't be undone.")) return;
     const { error: e2 } = await supabase.from("attendance_logs").delete().gte("timestamp", start).lt("timestamp", end);
-    if (e2) return setMsg({ kind: "err", text: Couldn't delete: ${e2.message} });
-    setMsg({ kind: "ok", text: Deleted ${total} records. });
+    if (e2) return setMsg({ kind: "err", text: "Couldn't delete: " + e2.message });
+    setMsg({ kind: "ok", text: "Deleted " + total + " records." });
     load();
   };
 
@@ -143,9 +143,9 @@ export default function LogsPage() {
       </div>
 
       {msg && (
-        <p role="alert" className={`rounded-lg p-3 text-sm ${msg.kind === "ok"
+        <p role="alert" className={"rounded-lg p-3 text-sm " + (msg.kind === "ok"
           ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
-          : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300"}`}>{msg.text}</p>
+          : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300")}>{msg.text}</p>
       )}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
